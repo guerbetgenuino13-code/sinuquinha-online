@@ -38,7 +38,16 @@ function updateBall() {
   ball.x += ball.vx;
   ball.y += ball.vy;
 
-  // colisão com bordas da mesa
+  // atrito
+  const friction = 0.99;
+  ball.vx *= friction;
+  ball.vy *= friction;
+
+  // parar quando estiver muito lento
+  if (Math.abs(ball.vx) < 0.05) ball.vx = 0;
+  if (Math.abs(ball.vy) < 0.05) ball.vy = 0;
+
+  // colisão com bordas
   if (ball.x - ball.r < margin || ball.x + ball.r > W - margin) {
     ball.vx *= -1;
   }
@@ -46,6 +55,7 @@ function updateBall() {
     ball.vy *= -1;
   }
 }
+
 
 function drawBall() {
   ctx.beginPath();
