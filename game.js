@@ -63,6 +63,8 @@ let pocketedThisShot = [];
 let shotInProgress = false;
 let ballInHand = false;
 
+let firstHitColor = null; // registra a cor da primeira bola tocada
+
 canvas.addEventListener("mousemove", e => {
   const rct = canvas.getBoundingClientRect();
   mouse.x = e.clientX - rct.left;
@@ -111,8 +113,10 @@ canvas.addEventListener("mouseup", () => {
   cueBall.vy = (dy / dist) * force;
 
   shotPower = 0;
-  pocketedThisShot = [];
-  shotInProgress = true;
+pocketedThisShot = [];
+firstHitColor = null; // reset do primeiro toque
+shotInProgress = true;
+
 });
 
 /* ================= DESENHO ================= */
@@ -229,6 +233,11 @@ function updateBalls() {
     for (let j = i + 1; j < balls.length; j++) {
       const a = balls[i], b = balls[j];
       if (ballInHand && (a.cue || b.cue)) continue;
+// registra o primeiro toque da bola branca
+if (shotInProgress && !firstHitColor) {
+  if (a.cue && !b.cue) firstHitColor = b.color;
+  else if (b.cue && !a.cue) firstHitColor = a.color;
+}
 
       const dx = b.x - a.x;
       const dy = b.y - a.y;
@@ -277,6 +286,18 @@ function checkPocket() {
 function resolveTurn() {
   if (!shotInProgress) return;
   shotInProgress = false;
+  // FALTA: tocou primeiro na bola errada
+if (
+  playerGroups[currentPlayer] &&
+  firstHitColor &&
+  firstHitColor !== playerGroups[currentPlayer]
+) {
+  showToast("FALTA! Primeiro toque errado");
+  currentPlayer = 1 - currentPlayer;
+  ballInHand = true;
+  return;
+}
+
 
   const cueFoul = pocketedThisShot.some(b => b.cue);
   const eightBall = pocketedThisShot.some(b => b.eight);
