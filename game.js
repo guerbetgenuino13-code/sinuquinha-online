@@ -1,4 +1,4 @@
-// 🎱 Sinuquinha Online — versão completa + HUD profissional
+// 🎱 Sinuquinha Online — versão completa + HUD profissional (COLISÃO CORRIGIDA)
 console.log("Sinuquinha Online iniciado");
 
 const canvas = document.getElementById("gameCanvas");
@@ -26,7 +26,6 @@ const players = ["Player 1", "Player 2"];
 let currentPlayer = 0;
 let playerGroups = [null, null];
 let gameOver = false;
-let gameMessage = "";
 
 // ================= HUD / FEEDBACK =================
 let toastText = "";
@@ -154,7 +153,12 @@ function drawPowerBar() {
   ctx.fillRect(W - 25, margin, 10, h);
 
   ctx.fillStyle = "#ffcc00";
-  ctx.fillRect(W - 25, margin + h * (1 - shotPower), 10, h * shotPower);
+  ctx.fillRect(
+    W - 25,
+    margin + h * (1 - shotPower),
+    10,
+    h * shotPower
+  );
 }
 
 // ================= HUD =================
@@ -196,28 +200,49 @@ function updateBalls() {
   balls.forEach(b => {
     b.x += b.vx;
     b.y += b.vy;
+
     b.vx *= 0.99;
     b.vy *= 0.99;
+
     if (Math.abs(b.vx) < 0.05) b.vx = 0;
     if (Math.abs(b.vy) < 0.05) b.vy = 0;
+
     if (b.x - b.r < margin || b.x + b.r > W - margin) b.vx *= -1;
     if (b.y - b.r < margin || b.y + b.r > H - margin) b.vy *= -1;
   });
 
+  // 👉 COLISÃO CORRIGIDA (anti-bola-grudada)
   for (let i = 0; i < balls.length; i++) {
     for (let j = i + 1; j < balls.length; j++) {
-      const a = balls[i], b = balls[j];
+      const a = balls[i];
+      const b = balls[j];
       const dx = b.x - a.x;
       const dy = b.y - a.y;
       const dist = Math.hypot(dx, dy);
-      if (dist < a.r + b.r) {
+      const minDist = a.r + b.r;
+
+      if (dist > 0 && dist < minDist) {
         const nx = dx / dist;
         const ny = dy / dist;
-        const p = (a.vx - b.vx) * nx + (a.vy - b.vy) * ny;
-        a.vx -= p * nx;
-        a.vy -= p * ny;
-        b.vx += p * nx;
-        b.vy += p * ny;
+
+        // separação física
+        const overlap = minDist - dist;
+        a.x -= nx * overlap / 2;
+        a.y -= ny * overlap / 2;
+        b.x += nx * overlap / 2;
+        b.y += ny * overlap / 2;
+
+        // troca de velocidade
+        const dvx = a.vx - b.vx;
+        const dvy = a.vy - b.vy;
+        const impact = dvx * nx + dvy * ny;
+
+        if (impact > 0) continue;
+
+        a.vx -= impact * nx;
+        a.vy -= impact * ny;
+        b.vx += impact * nx;
+        b.vy += impact * ny;
       }
     }
   }
@@ -237,21 +262,6 @@ function checkPocket() {
           cueBall.vx = cueBall.vy = 0;
           currentPlayer = 1 - currentPlayer;
           showToast("FALTA! Bola branca");
-        } else if (ball.eight) {
-          const group = playerGroups[currentPlayer];
-          const remaining = balls.some(b => b.color === group);
-          gameOver = true;
-          gameMessage = remaining
-            ? players[1 - currentPlayer] + " venceu!"
-            : players[currentPlayer] + " venceu!";
-          showToast(gameMessage);
-        } else {
-          if (!playerGroups[currentPlayer]) {
-            playerGroups[currentPlayer] = ball.color;
-            playerGroups[1 - currentPlayer] =
-              ball.color === "red" ? "yellow" : "red";
-            showToast("Grupo definido: " + ball.color);
-          }
         }
 
         balls.splice(i, 1);
