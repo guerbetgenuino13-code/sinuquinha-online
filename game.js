@@ -1,4 +1,4 @@
-// 🎱 Sinuquinha Online — bola + caçapas
+// 🎱 Sinuquinha Online — base completa (mesa + bola + caçapas + taco)
 console.log("Sinuquinha Online iniciado");
 
 const canvas = document.getElementById("gameCanvas");
@@ -7,10 +7,10 @@ const ctx = canvas.getContext("2d");
 const W = canvas.width;
 const H = canvas.height;
 
-// mesa
+// ================= MESA =================
 const margin = 40;
 
-// caçapas
+// ================= CAÇAPAS =================
 const pocketRadius = 18;
 const pockets = [
   { x: margin, y: margin },
@@ -21,7 +21,7 @@ const pockets = [
   { x: W - margin, y: H - margin },
 ];
 
-// bola
+// ================= BOLA =================
 const ball = {
   x: W / 2,
   y: H / 2,
@@ -30,6 +30,16 @@ const ball = {
   vy: 0
 };
 
+// ================= MOUSE / MIRA =================
+let mouse = { x: 0, y: 0 };
+
+canvas.addEventListener("mousemove", (e) => {
+  const rect = canvas.getBoundingClientRect();
+  mouse.x = e.clientX - rect.left;
+  mouse.y = e.clientY - rect.top;
+});
+
+// ================= DESENHO =================
 function drawTable() {
   // madeira
   ctx.fillStyle = "#2b1b0f";
@@ -54,6 +64,54 @@ function drawPockets() {
   });
 }
 
+function drawBall() {
+  ctx.beginPath();
+  ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
+  ctx.fillStyle = "white";
+  ctx.fill();
+}
+
+// ================= TACO + MIRA =================
+function drawAim() {
+  // só mostra se a bola estiver parada
+  if (ball.vx !== 0 || ball.vy !== 0) return;
+
+  const dx = mouse.x - ball.x;
+  const dy = mouse.y - ball.y;
+  const dist = Math.hypot(dx, dy);
+  if (dist === 0) return;
+
+  // linha de mira
+  ctx.strokeStyle = "rgba(255,255,255,0.5)";
+  ctx.setLineDash([6, 6]);
+  ctx.beginPath();
+  ctx.moveTo(ball.x, ball.y);
+  ctx.lineTo(mouse.x, mouse.y);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // taco
+  const ux = dx / dist;
+  const uy = dy / dist;
+
+  const stickLength = 80;
+  const offset = 14;
+
+  ctx.strokeStyle = "#d2b48c";
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(
+    ball.x - ux * offset,
+    ball.y - uy * offset
+  );
+  ctx.lineTo(
+    ball.x - ux * (stickLength + offset),
+    ball.y - uy * (stickLength + offset)
+  );
+  ctx.stroke();
+}
+
+// ================= FÍSICA =================
 function updateBall() {
   ball.x += ball.vx;
   ball.y += ball.vy;
@@ -63,7 +121,6 @@ function updateBall() {
   ball.vx *= friction;
   ball.vy *= friction;
 
-  // parar quando estiver lento
   if (Math.abs(ball.vx) < 0.05) ball.vx = 0;
   if (Math.abs(ball.vy) < 0.05) ball.vy = 0;
 
@@ -92,6 +149,7 @@ function checkPocket() {
   }
 }
 
+// ================= TACADA =================
 canvas.addEventListener("click", (e) => {
   if (ball.vx !== 0 || ball.vy !== 0) return;
 
@@ -109,17 +167,12 @@ canvas.addEventListener("click", (e) => {
   ball.vy = (dy / dist) * force;
 });
 
-function drawBall() {
-  ctx.beginPath();
-  ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
-  ctx.fillStyle = "white";
-  ctx.fill();
-}
-
+// ================= LOOP =================
 function gameLoop() {
   ctx.clearRect(0, 0, W, H);
   drawTable();
   drawPockets();
+  drawAim();
   updateBall();
   checkPocket();
   drawBall();
@@ -127,6 +180,3 @@ function gameLoop() {
 }
 
 gameLoop();
-
-gameLoop();
-
