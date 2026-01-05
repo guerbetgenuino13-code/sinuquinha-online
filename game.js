@@ -233,16 +233,18 @@ function updateBalls() {
     for (let j = i + 1; j < balls.length; j++) {
       const a = balls[i], b = balls[j];
       if (ballInHand && (a.cue || b.cue)) continue;
-// registra o primeiro toque da bola branca
-if (shotInProgress && !firstHitColor) {
-  if (a.cue && !b.cue) firstHitColor = b.color;
-  else if (b.cue && !a.cue) firstHitColor = a.color;
-}
 
       const dx = b.x - a.x;
       const dy = b.y - a.y;
       const dist = Math.hypot(dx, dy);
       const minDist = a.r + b.r;
+      
+      // registra o primeiro toque da bola branca
+if (shotInProgress && !firstHitColor) {
+  if (a.cue && !b.cue) firstHitColor = b.color;
+  else if (b.cue && !a.cue) firstHitColor = a.color;
+}
+
       if (dist === 0 || dist >= minDist) continue;
 
       const nx = dx / dist;
