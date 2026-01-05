@@ -1,4 +1,4 @@
-// 🎱 Sinuquinha Online — 8-ball COMPLETO + bola na mão (AJUSTADO)
+// 🎱 Sinuquinha Online — 8-ball COMPLETO + bola na mão (3 CORREÇÕES FINAIS)
 console.log("Sinuquinha Online iniciado");
 
 const canvas = document.getElementById("gameCanvas");
@@ -64,13 +64,23 @@ let shotInProgress = false;
 let ballInHand = false;
 
 canvas.addEventListener("mousemove", e => {
-  const r = canvas.getBoundingClientRect();
-  mouse.x = e.clientX - r.left;
-  mouse.y = e.clientY - r.top;
+  const rct = canvas.getBoundingClientRect();
+  mouse.x = e.clientX - rct.left;
+  mouse.y = e.clientY - rct.top;
 
   if (ballInHand) {
-    cueBall.x = Math.max(margin + cueBall.r, Math.min(W - margin - cueBall.r, mouse.x));
-    cueBall.y = Math.max(margin + cueBall.r, Math.min(H - margin - cueBall.r, mouse.y));
+    let nx = Math.max(margin + cueBall.r, Math.min(W - margin - cueBall.r, mouse.x));
+    let ny = Math.max(margin + cueBall.r, Math.min(H - margin - cueBall.r, mouse.y));
+
+    // ❌ impedir sobrepor outras bolas
+    const invalid = balls.some(
+      b => !b.cue && Math.hypot(nx - b.x, ny - b.y) < cueBall.r + b.r
+    );
+
+    if (!invalid) {
+      cueBall.x = nx;
+      cueBall.y = ny;
+    }
   }
 });
 
@@ -182,7 +192,6 @@ function drawHUD() {
   ctx.font = "14px Arial";
   ctx.fillText("Vez: " + players[currentPlayer], 20, 32);
   ctx.fillText("Grupo: " + (playerGroups[currentPlayer] || "não definido"), 20, 52);
-
   if (ballInHand) ctx.fillText("BOLA NA MÃO", 160, 32);
 
   if (toastTimer > 0) {
@@ -199,27 +208,26 @@ function drawHUD() {
 /* ================= FÍSICA ================= */
 function updateBalls() {
   balls.forEach(b => {
-    if (ballInHand && b.cue) {
-      b.vx = 0;
-      b.vy = 0;
-      return;
-    }
-
     b.x += b.vx;
     b.y += b.vy;
+
     b.vx *= 0.99;
     b.vy *= 0.99;
+
     if (Math.abs(b.vx) < 0.03) b.vx = 0;
     if (Math.abs(b.vy) < 0.03) b.vy = 0;
-    if (b.x - b.r < margin || b.x + b.r > W - margin) b.vx *= -1;
-    if (b.y - b.r < margin || b.y + b.r > H - margin) b.vy *= -1;
+
+    // bordas corrigidas
+    if (b.x - b.r < margin) { b.x = margin + b.r; b.vx *= -1; }
+    if (b.x + b.r > W - margin) { b.x = W - margin - b.r; b.vx *= -1; }
+    if (b.y - b.r < margin) { b.y = margin + b.r; b.vy *= -1; }
+    if (b.y + b.r > H - margin) { b.y = H - margin - b.r; b.vy *= -1; }
   });
 
   const restitution = 0.98;
   for (let i = 0; i < balls.length; i++) {
     for (let j = i + 1; j < balls.length; j++) {
       const a = balls[i], b = balls[j];
-
       if (ballInHand && (a.cue || b.cue)) continue;
 
       const dx = b.x - a.x;
@@ -289,6 +297,14 @@ function resolveTurn() {
 
   if (colored.length > 0) {
     const color = colored[0].color;
+
+    if (playerGroups[currentPlayer] && color !== playerGroups[currentPlayer]) {
+      showToast("FALTA! Bola errada");
+      currentPlayer = 1 - currentPlayer;
+      ballInHand = true;
+      return;
+    }
+
     if (!playerGroups[currentPlayer]) {
       playerGroups[currentPlayer] = color;
       playerGroups[1 - currentPlayer] = color === "red" ? "yellow" : "red";
