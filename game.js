@@ -66,6 +66,9 @@ let ballInHand = false;
 let firstHitColor = null; // registra a cor da primeira bola tocada
 
 let touchedOwnGroup = false; // se tocou alguma bola do próprio grupo
+let calledPocket = null;      // índice da caçapa chamada (0..5)
+let waitingPocketCall = false; // aguardando escolha da caçapa
+
 
 canvas.addEventListener("mousemove", e => {
   const rct = canvas.getBoundingClientRect();
@@ -90,6 +93,23 @@ canvas.addEventListener("mousemove", e => {
 
 canvas.addEventListener("mousedown", () => {
   if (gameOver) return;
+// 🔔 chamada de caçapa da bola 8
+if (waitingPocketCall) {
+  const mx = mouse.x;
+  const my = mouse.y;
+
+  // verifica se clicou em alguma caçapa
+  for (let i = 0; i < pockets.length; i++) {
+    const p = pockets[i];
+    if (Math.hypot(mx - p.x, my - p.y) <= pocketRadius) {
+      calledPocket = i;
+      waitingPocketCall = false;
+      showToast("Caçapa chamada!");
+      return; // NÃO inicia tacada agora
+    }
+  }
+  return; // clique fora da caçapa não faz nada
+}
 
   if (ballInHand) {
     ballInHand = false;
@@ -208,7 +228,12 @@ function drawHUD() {
     ctx.fillText(toastText, W / 2 - ctx.measureText(toastText).width / 2, 35);
     ctx.globalAlpha = 1;
     toastTimer--;
+  
   }
+  if (waitingPocketCall) {
+  ctx.fillStyle = "#ffcc00";
+  ctx.fillText("Chame a caçapa da bola 8", 20, 72);
+}
 }
 
 /* ================= FÍSICA ================= */
@@ -284,6 +309,9 @@ function checkPocket() {
     for (let p of pockets) {
       if (Math.hypot(balls[i].x - p.x, balls[i].y - p.y) < pocketRadius) {
         const ball = balls[i];
+         if (ball.eight) {
+    ball.pocketIndex = pockets.indexOf(p);
+  }
         pocketedThisShot.push(ball);
 
         if (!ball.cue) balls.splice(i, 1);
@@ -324,14 +352,33 @@ const eightBall = pocketedThisShot.some(b => b.eight);
 const colored = pocketedThisShot.filter(b => !b.cue && !b.eight);
 
 if (eightBall) {
-  // só pode ganhar se já limpou o próprio grupo
-  if (groupCleared(currentPlayer)) {
+  const eight = pocketedThisShot.find(b => b.eight);
+
+  if (!groupCleared(currentPlayer)) {
+    gameOver = true;
+    showToast(players[currentPlayer] + " perdeu (bola 8 antes da hora)");
+    return;
+  }
+
+  if (calledPocket !== null && eight.pocketIndex === calledPocket) {
     gameOver = true;
     showToast(players[currentPlayer] + " venceu!");
   } else {
     gameOver = true;
-    showToast(players[currentPlayer] + " perdeu (bola 8 antes da hora)");
+    showToast(players[currentPlayer] + " perdeu (caçapa errada)");
   }
+  return;
+}
+// 🔔 Exige chamada da caçapa da bola 8 quando o grupo for limpo
+if (
+  !gameOver &&
+  playerGroups[currentPlayer] &&
+  groupCleared(currentPlayer) &&
+  balls.some(b => b.eight) &&
+  calledPocket === null
+) {
+  waitingPocketCall = true;
+  showToast("Chame a caçapa da bola 8");
   return;
 }
 
