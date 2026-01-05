@@ -1,4 +1,4 @@
-// 🎱 Sinuquinha Online — versão completa + regras 8-ball
+// 🎱 Sinuquinha Online — versão completa + HUD profissional
 console.log("Sinuquinha Online iniciado");
 
 const canvas = document.getElementById("gameCanvas");
@@ -24,26 +24,31 @@ const pockets = [
 // ================= JOGADORES =================
 const players = ["Player 1", "Player 2"];
 let currentPlayer = 0;
-
-// grupos: null | "red" | "yellow"
 let playerGroups = [null, null];
 let gameOver = false;
 let gameMessage = "";
+
+// ================= HUD / FEEDBACK =================
+let toastText = "";
+let toastTimer = 0;
+const TOAST_DURATION = 180;
+
+function showToast(text) {
+  toastText = text;
+  toastTimer = TOAST_DURATION;
+}
 
 // ================= BOLAS =================
 const r = 10;
 let balls = [
   { x: W / 2 - 140, y: H / 2, vx: 0, vy: 0, r, color: "white", cue: true },
 
-  // grupo A
   { x: W / 2 + 40, y: H / 2 - 20, vx: 0, vy: 0, r, color: "red" },
   { x: W / 2 + 60, y: H / 2, vx: 0, vy: 0, r, color: "red" },
 
-  // grupo B
   { x: W / 2 + 40, y: H / 2 + 20, vx: 0, vy: 0, r, color: "yellow" },
   { x: W / 2 + 60, y: H / 2 + 40, vx: 0, vy: 0, r, color: "yellow" },
 
-  // bola preta
   { x: W / 2 + 80, y: H / 2 + 20, vx: 0, vy: 0, r, color: "black", eight: true },
 ];
 
@@ -63,8 +68,7 @@ canvas.addEventListener("mousemove", e => {
 });
 
 canvas.addEventListener("mousedown", () => {
-  if (gameOver) return;
-  if (!allStopped()) return;
+  if (gameOver || !allStopped()) return;
   charging = true;
 });
 
@@ -150,31 +154,40 @@ function drawPowerBar() {
   ctx.fillRect(W - 25, margin, 10, h);
 
   ctx.fillStyle = "#ffcc00";
-  ctx.fillRect(
-    W - 25,
-    margin + h * (1 - shotPower),
-    10,
-    h * shotPower
-  );
+  ctx.fillRect(W - 25, margin + h * (1 - shotPower), 10, h * shotPower);
 }
 
 // ================= HUD =================
-function drawHUD() {
-  ctx.fillStyle = "white";
-  ctx.font = "16px Arial";
-  ctx.fillText("Vez: " + players[currentPlayer], 20, 25);
+function drawAdvancedHUD() {
+  ctx.fillStyle = "rgba(0,0,0,0.35)";
+  ctx.fillRect(10, 10, 260, 90);
 
-  if (playerGroups[currentPlayer]) {
-    ctx.fillText(
-      "Seu grupo: " + playerGroups[currentPlayer],
-      20,
-      45
-    );
+  ctx.fillStyle = "#fff";
+  ctx.font = "14px Arial";
+  ctx.fillText("Vez: " + players[currentPlayer], 20, 30);
+
+  const group = playerGroups[currentPlayer];
+  ctx.fillText("Seu grupo: " + (group || "não definido"), 20, 50);
+
+  if (group) {
+    const remaining = balls.filter(b => b.color === group).length;
+    ctx.fillText("Restantes: " + remaining, 20, 70);
   }
 
-  if (gameMessage) {
-    ctx.font = "20px Arial";
-    ctx.fillText(gameMessage, W / 2 - 120, 30);
+  if (toastTimer > 0 && toastText) {
+    ctx.globalAlpha = Math.min(1, toastTimer / 30);
+    ctx.fillStyle = "rgba(0,0,0,0.6)";
+    ctx.fillRect(W / 2 - 180, 10, 360, 40);
+
+    ctx.fillStyle = "#fff";
+    ctx.font = "18px Arial";
+    ctx.fillText(
+      toastText,
+      W / 2 - ctx.measureText(toastText).width / 2,
+      38
+    );
+    ctx.globalAlpha = 1;
+    toastTimer--;
   }
 }
 
@@ -218,36 +231,26 @@ function checkPocket() {
         const ball = balls[i];
         ballsPocketedThisTurn.push(ball);
 
-        // branca
         if (ball.cue) {
           cueBall.x = W / 2 - 140;
           cueBall.y = H / 2;
           cueBall.vx = cueBall.vy = 0;
           currentPlayer = 1 - currentPlayer;
-        }
-
-        // bola preta
-        else if (ball.eight) {
+          showToast("FALTA! Bola branca");
+        } else if (ball.eight) {
           const group = playerGroups[currentPlayer];
-          const remaining = balls.some(
-            b => b.color === group
-          );
-
-          if (!group || remaining) {
-            gameOver = true;
-            gameMessage = players[1 - currentPlayer] + " venceu!";
-          } else {
-            gameOver = true;
-            gameMessage = players[currentPlayer] + " venceu!";
-          }
-        }
-
-        // bolas normais
-        else {
+          const remaining = balls.some(b => b.color === group);
+          gameOver = true;
+          gameMessage = remaining
+            ? players[1 - currentPlayer] + " venceu!"
+            : players[currentPlayer] + " venceu!";
+          showToast(gameMessage);
+        } else {
           if (!playerGroups[currentPlayer]) {
             playerGroups[currentPlayer] = ball.color;
             playerGroups[1 - currentPlayer] =
               ball.color === "red" ? "yellow" : "red";
+            showToast("Grupo definido: " + ball.color);
           }
         }
 
@@ -278,7 +281,7 @@ function gameLoop() {
   updateBalls();
   checkPocket();
   drawBalls();
-  drawHUD();
+  drawAdvancedHUD();
 
   if (
     allStopped() &&
@@ -287,6 +290,7 @@ function gameLoop() {
     !gameOver
   ) {
     currentPlayer = 1 - currentPlayer;
+    showToast("Troca de vez");
   }
 
   requestAnimationFrame(gameLoop);
