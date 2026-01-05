@@ -1,4 +1,4 @@
-// 🎱 Sinuquinha Online — versão FINAL reintegrada (física estável)
+// 🎱 Sinuquinha Online — versão FINAL com regras 8-ball (ESTÁVEL)
 console.log("Sinuquinha Online iniciado");
 
 const canvas = document.getElementById("gameCanvas");
@@ -24,11 +24,13 @@ const pockets = [
 /* ================= JOGADORES ================= */
 const players = ["Player 1", "Player 2"];
 let currentPlayer = 0;
+let playerGroups = [null, null]; // "red" | "yellow"
+let gameOver = false;
 
 /* ================= HUD ================= */
 let toastText = "";
 let toastTimer = 0;
-const TOAST_DURATION = 120;
+const TOAST_DURATION = 140;
 function showToast(text) {
   toastText = text;
   toastTimer = TOAST_DURATION;
@@ -45,7 +47,7 @@ let balls = [
   { x: W / 2 + 60, y: H / 2 + 30, vx: 0, vy: 0, r, color: "yellow" },
   { x: W / 2 + 80, y: H / 2 + 60, vx: 0, vy: 0, r, color: "yellow" },
 
-  { x: W / 2 + 100, y: H / 2 + 15, vx: 0, vy: 0, r, color: "black" },
+  { x: W / 2 + 100, y: H / 2 + 15, vx: 0, vy: 0, r, color: "black", eight: true },
 ];
 
 const cueBall = balls.find(b => b.cue);
@@ -56,6 +58,10 @@ let charging = false;
 let shotPower = 0;
 const maxForce = 14;
 
+// controle de turno
+let pocketedThisShot = [];
+let shotInProgress = false;
+
 canvas.addEventListener("mousemove", e => {
   const r = canvas.getBoundingClientRect();
   mouse.x = e.clientX - r.left;
@@ -63,12 +69,12 @@ canvas.addEventListener("mousemove", e => {
 });
 
 canvas.addEventListener("mousedown", () => {
-  if (!allStopped()) return;
+  if (gameOver || !allStopped()) return;
   charging = true;
 });
 
 canvas.addEventListener("mouseup", () => {
-  if (!charging) return;
+  if (!charging || gameOver) return;
   charging = false;
 
   const dx = mouse.x - cueBall.x;
@@ -79,7 +85,10 @@ canvas.addEventListener("mouseup", () => {
   const force = shotPower * maxForce;
   cueBall.vx = (dx / dist) * force;
   cueBall.vy = (dy / dist) * force;
+
   shotPower = 0;
+  pocketedThisShot = [];
+  shotInProgress = true;
 });
 
 /* ================= DESENHO ================= */
@@ -110,7 +119,7 @@ function drawBalls() {
 
 /* ================= TACO + MIRA ================= */
 function drawAim() {
-  if (!allStopped()) return;
+  if (!allStopped() || gameOver) return;
 
   const dx = mouse.x - cueBall.x;
   const dy = mouse.y - cueBall.y;
@@ -152,15 +161,18 @@ function drawPowerBar() {
 /* ================= HUD ================= */
 function drawHUD() {
   ctx.fillStyle = "rgba(0,0,0,0.35)";
-  ctx.fillRect(10, 10, 200, 40);
+  ctx.fillRect(10, 10, 260, 70);
   ctx.fillStyle = "#fff";
   ctx.font = "14px Arial";
-  ctx.fillText("Vez: " + players[currentPlayer], 20, 35);
+  ctx.fillText("Vez: " + players[currentPlayer], 20, 32);
+
+  const g = playerGroups[currentPlayer];
+  ctx.fillText("Grupo: " + (g || "não definido"), 20, 52);
 
   if (toastTimer > 0) {
     ctx.globalAlpha = toastTimer / TOAST_DURATION;
     ctx.fillStyle = "rgba(0,0,0,0.6)";
-    ctx.fillRect(W / 2 - 150, 10, 300, 36);
+    ctx.fillRect(W / 2 - 160, 10, 320, 36);
     ctx.fillStyle = "#fff";
     ctx.fillText(toastText, W / 2 - ctx.measureText(toastText).width / 2, 35);
     ctx.globalAlpha = 1;
@@ -182,7 +194,6 @@ function updateBalls() {
   });
 
   const restitution = 0.98;
-
   for (let i = 0; i < balls.length; i++) {
     for (let j = i + 1; j < balls.length; j++) {
       const a = balls[i], b = balls[j];
@@ -204,10 +215,10 @@ function updateBalls() {
       const rvy = b.vy - a.vy;
       const vel = rvx * nx + rvy * ny;
       const impulse = -(1 + restitution) * vel / 2;
-      const ix = impulse * nx;
-      const iy = impulse * ny;
-      a.vx -= ix; a.vy -= iy;
-      b.vx += ix; b.vy += iy;
+      a.vx -= impulse * nx;
+      a.vy -= impulse * ny;
+      b.vx += impulse * nx;
+      b.vy += impulse * ny;
     }
   }
 }
@@ -217,16 +228,46 @@ function checkPocket() {
   for (let i = balls.length - 1; i >= 0; i--) {
     for (let p of pockets) {
       if (Math.hypot(balls[i].x - p.x, balls[i].y - p.y) < pocketRadius) {
-        if (balls[i].cue) {
-          cueBall.x = W / 2 - 140;
-          cueBall.y = H / 2;
-          cueBall.vx = cueBall.vy = 0;
-          showToast("FALTA!");
-        }
+        pocketedThisShot.push(balls[i]);
         balls.splice(i, 1);
         break;
       }
     }
+  }
+}
+
+/* ================= REGRAS 8-BALL ================= */
+function resolveTurn() {
+  if (!shotInProgress) return;
+  shotInProgress = false;
+
+  const cueFoul = pocketedThisShot.some(b => b.cue);
+  const eightBall = pocketedThisShot.some(b => b.eight);
+
+  if (eightBall) {
+    gameOver = true;
+    showToast(players[currentPlayer] + " perdeu (bola preta)");
+    return;
+  }
+
+  if (cueFoul) {
+    showToast("FALTA!");
+    currentPlayer = 1 - currentPlayer;
+    return;
+  }
+
+  const colored = pocketedThisShot.filter(b => !b.cue && !b.eight);
+  if (colored.length > 0) {
+    const color = colored[0].color;
+    if (!playerGroups[currentPlayer]) {
+      playerGroups[currentPlayer] = color;
+      playerGroups[1 - currentPlayer] = color === "red" ? "yellow" : "red";
+      showToast("Grupo definido: " + color);
+    }
+    showToast("Continua a vez");
+  } else {
+    currentPlayer = 1 - currentPlayer;
+    showToast("Troca de vez");
   }
 }
 
@@ -252,9 +293,7 @@ function gameLoop() {
   drawBalls();
   drawHUD();
 
-  if (allStopped() && !charging) {
-    currentPlayer = currentPlayer;
-  }
+  if (allStopped()) resolveTurn();
 
   requestAnimationFrame(gameLoop);
 }
