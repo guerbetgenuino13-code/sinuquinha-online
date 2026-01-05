@@ -1,4 +1,4 @@
-// 🎱 Sinuquinha Online — versão FINAL com regras 8-ball + trava de tacada
+// 🎱 Sinuquinha Online — 8-ball com bola na mão após falta
 console.log("Sinuquinha Online iniciado");
 
 const canvas = document.getElementById("gameCanvas");
@@ -62,15 +62,36 @@ const maxForce = 14;
 // controle de turno
 let pocketedThisShot = [];
 let shotInProgress = false;
+let ballInHand = false;
 
 canvas.addEventListener("mousemove", e => {
   const r = canvas.getBoundingClientRect();
   mouse.x = e.clientX - r.left;
   mouse.y = e.clientY - r.top;
+
+  // mover bola branca se estiver em "bola na mão"
+  if (ballInHand) {
+    cueBall.x = Math.max(
+      margin + cueBall.r,
+      Math.min(W - margin - cueBall.r, mouse.x)
+    );
+    cueBall.y = Math.max(
+      margin + cueBall.r,
+      Math.min(H - margin - cueBall.r, mouse.y)
+    );
+  }
 });
 
 canvas.addEventListener("mousedown", () => {
   if (gameOver) return;
+
+  // se está em bola na mão, confirma posição
+  if (ballInHand) {
+    ballInHand = false;
+    showToast("Bola posicionada");
+    return;
+  }
+
   if (!allStopped()) return;
   if (shotInProgress) return;
 
@@ -78,7 +99,7 @@ canvas.addEventListener("mousedown", () => {
 });
 
 canvas.addEventListener("mouseup", () => {
-  if (!charging || gameOver) return;
+  if (!charging || gameOver || ballInHand) return;
   charging = false;
 
   const dx = mouse.x - cueBall.x;
@@ -123,7 +144,7 @@ function drawBalls() {
 
 /* ================= TACO + MIRA ================= */
 function drawAim() {
-  if (!allStopped() || gameOver) return;
+  if (!allStopped() || gameOver || ballInHand) return;
 
   const dx = mouse.x - cueBall.x;
   const dy = mouse.y - cueBall.y;
@@ -155,6 +176,8 @@ function drawAim() {
 
 /* ================= BARRA DE FORÇA ================= */
 function drawPowerBar() {
+  if (ballInHand) return;
+
   const h = H - margin * 2;
   ctx.fillStyle = "#444";
   ctx.fillRect(W - 25, margin, 10, h);
@@ -173,12 +196,20 @@ function drawHUD() {
   const g = playerGroups[currentPlayer];
   ctx.fillText("Grupo: " + (g || "não definido"), 20, 52);
 
+  if (ballInHand) {
+    ctx.fillText("BOLA NA MÃO", 180, 32);
+  }
+
   if (toastTimer > 0) {
     ctx.globalAlpha = toastTimer / TOAST_DURATION;
     ctx.fillStyle = "rgba(0,0,0,0.6)";
     ctx.fillRect(W / 2 - 160, 10, 320, 36);
     ctx.fillStyle = "#fff";
-    ctx.fillText(toastText, W / 2 - ctx.measureText(toastText).width / 2, 35);
+    ctx.fillText(
+      toastText,
+      W / 2 - ctx.measureText(toastText).width / 2,
+      35
+    );
     ctx.globalAlpha = 1;
     toastTimer--;
   }
@@ -255,8 +286,9 @@ function resolveTurn() {
   }
 
   if (cueFoul) {
-    showToast("FALTA!");
+    showToast("FALTA! Bola na mão");
     currentPlayer = 1 - currentPlayer;
+    ballInHand = true;
     return;
   }
 
