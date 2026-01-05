@@ -1,4 +1,4 @@
-// 🎱 Sinuquinha Online — base completa + barra de força
+// 🎱 Si// 🎱 Sinuquinha Online — base completa com múltiplas bolas
 console.log("Sinuquinha Online iniciado");
 
 const canvas = document.getElementById("gameCanvas");
@@ -21,31 +21,32 @@ const pockets = [
   { x: W - margin, y: H - margin },
 ];
 
-// ================= BOLA =================
-const ball = {
-  x: W / 2,
-  y: H / 2,
-  r: 10,
-  vx: 0,
-  vy: 0
-};
+// ================= BOLAS =================
+const ballRadius = 10;
 
-// ================= MOUSE / MIRA =================
+const balls = [
+  { x: W / 2 - 120, y: H / 2, vx: 0, vy: 0, r: ballRadius, color: "white", cue: true },
+  { x: W / 2 + 40, y: H / 2 - 20, vx: 0, vy: 0, r: ballRadius, color: "red" },
+  { x: W / 2 + 60, y: H / 2, vx: 0, vy: 0, r: ballRadius, color: "yellow" },
+  { x: W / 2 + 60, y: H / 2 + 20, vx: 0, vy: 0, r: ballRadius, color: "blue" },
+];
+
+const cueBall = balls[0];
+
+// ================= MOUSE / FORÇA =================
 let mouse = { x: 0, y: 0 };
-
-canvas.addEventListener("mousemove", (e) => {
-  const rect = canvas.getBoundingClientRect();
-  mouse.x = e.clientX - rect.left;
-  mouse.y = e.clientY - rect.top;
-});
-
-// ================= FORÇA =================
-let shotPower = 0;          // 0..1
 let charging = false;
+let shotPower = 0;
 const maxForce = 14;
 
+canvas.addEventListener("mousemove", (e) => {
+  const r = canvas.getBoundingClientRect();
+  mouse.x = e.clientX - r.left;
+  mouse.y = e.clientY - r.top;
+});
+
 canvas.addEventListener("mousedown", () => {
-  if (ball.vx !== 0 || ball.vy !== 0) return;
+  if (!isAllStopped()) return;
   charging = true;
 });
 
@@ -53,19 +54,14 @@ canvas.addEventListener("mouseup", () => {
   if (!charging) return;
   charging = false;
 
-  const dx = mouse.x - ball.x;
-  const dy = mouse.y - ball.y;
+  const dx = mouse.x - cueBall.x;
+  const dy = mouse.y - cueBall.y;
   const dist = Math.hypot(dx, dy);
   if (dist === 0) return;
 
-  const ux = dx / dist;
-  const uy = dy / dist;
-
   const force = shotPower * maxForce;
-
-  ball.vx = ux * force;
-  ball.vy = uy * force;
-
+  cueBall.vx = (dx / dist) * force;
+  cueBall.vy = (dy / dist) * force;
   shotPower = 0;
 });
 
@@ -75,12 +71,7 @@ function drawTable() {
   ctx.fillRect(0, 0, W, H);
 
   ctx.fillStyle = "#0b6b3a";
-  ctx.fillRect(
-    margin,
-    margin,
-    W - margin * 2,
-    H - margin * 2
-  );
+  ctx.fillRect(margin, margin, W - margin * 2, H - margin * 2);
 }
 
 function drawPockets() {
@@ -92,26 +83,28 @@ function drawPockets() {
   });
 }
 
-function drawBall() {
-  ctx.beginPath();
-  ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
-  ctx.fillStyle = "white";
-  ctx.fill();
+function drawBalls() {
+  balls.forEach(b => {
+    ctx.beginPath();
+    ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+    ctx.fillStyle = b.color;
+    ctx.fill();
+  });
 }
 
-// ================= TACO + MIRA =================
+// ================= MIRA =================
 function drawAim() {
-  if (ball.vx !== 0 || ball.vy !== 0) return;
+  if (!isAllStopped()) return;
 
-  const dx = mouse.x - ball.x;
-  const dy = mouse.y - ball.y;
+  const dx = mouse.x - cueBall.x;
+  const dy = mouse.y - cueBall.y;
   const dist = Math.hypot(dx, dy);
   if (dist === 0) return;
 
-  ctx.strokeStyle = "rgba(255,255,255,0.5)";
   ctx.setLineDash([6, 6]);
+  ctx.strokeStyle = "rgba(255,255,255,0.5)";
   ctx.beginPath();
-  ctx.moveTo(ball.x, ball.y);
+  ctx.moveTo(cueBall.x, cueBall.y);
   ctx.lineTo(mouse.x, mouse.y);
   ctx.stroke();
   ctx.setLineDash([]);
@@ -120,74 +113,85 @@ function drawAim() {
   const uy = dy / dist;
 
   const stickLength = 80 + shotPower * 40;
-  const offset = 14;
-
   ctx.strokeStyle = "#d2b48c";
   ctx.lineWidth = 4;
   ctx.beginPath();
-  ctx.moveTo(
-    ball.x - ux * offset,
-    ball.y - uy * offset
-  );
-  ctx.lineTo(
-    ball.x - ux * (stickLength + offset),
-    ball.y - uy * (stickLength + offset)
-  );
+  ctx.moveTo(cueBall.x - ux * 14, cueBall.y - uy * 14);
+  ctx.lineTo(cueBall.x - ux * (stickLength + 14), cueBall.y - uy * (stickLength + 14));
   ctx.stroke();
 }
 
 // ================= BARRA DE FORÇA =================
 function drawPowerBar() {
-  const barX = W - 25;
-  const barY = margin;
-  const barH = H - margin * 2;
-  const barW = 10;
-
+  const h = H - margin * 2;
   ctx.fillStyle = "#444";
-  ctx.fillRect(barX, barY, barW, barH);
+  ctx.fillRect(W - 25, margin, 10, h);
 
   ctx.fillStyle = "#ffcc00";
-  ctx.fillRect(
-    barX,
-    barY + barH * (1 - shotPower),
-    barW,
-    barH * shotPower
-  );
+  ctx.fillRect(W - 25, margin + h * (1 - shotPower), 10, h * shotPower);
 }
 
 // ================= FÍSICA =================
-function updateBall() {
-  ball.x += ball.vx;
-  ball.y += ball.vy;
+function updateBalls() {
+  balls.forEach(b => {
+    b.x += b.vx;
+    b.y += b.vy;
 
-  const friction = 0.99;
-  ball.vx *= friction;
-  ball.vy *= friction;
+    b.vx *= 0.99;
+    b.vy *= 0.99;
 
-  if (Math.abs(ball.vx) < 0.05) ball.vx = 0;
-  if (Math.abs(ball.vy) < 0.05) ball.vy = 0;
+    if (Math.abs(b.vx) < 0.05) b.vx = 0;
+    if (Math.abs(b.vy) < 0.05) b.vy = 0;
 
-  if (ball.x - ball.r < margin || ball.x + ball.r > W - margin) {
-    ball.vx *= -1;
-  }
-  if (ball.y - ball.r < margin || ball.y + ball.r > H - margin) {
-    ball.vy *= -1;
+    if (b.x - b.r < margin || b.x + b.r > W - margin) b.vx *= -1;
+    if (b.y - b.r < margin || b.y + b.r > H - margin) b.vy *= -1;
+  });
+
+  // colisão entre bolas
+  for (let i = 0; i < balls.length; i++) {
+    for (let j = i + 1; j < balls.length; j++) {
+      const a = balls[i];
+      const b = balls[j];
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const dist = Math.hypot(dx, dy);
+      const minDist = a.r + b.r;
+
+      if (dist < minDist) {
+        const nx = dx / dist;
+        const ny = dy / dist;
+
+        const p = (a.vx * nx + a.vy * ny - b.vx * nx - b.vy * ny);
+
+        a.vx -= p * nx;
+        a.vy -= p * ny;
+        b.vx += p * nx;
+        b.vy += p * ny;
+      }
+    }
   }
 }
 
 function checkPocket() {
-  for (let p of pockets) {
-    const dx = ball.x - p.x;
-    const dy = ball.y - p.y;
-    const dist = Math.hypot(dx, dy);
-
-    if (dist < pocketRadius) {
-      ball.x = W / 2;
-      ball.y = H / 2;
-      ball.vx = 0;
-      ball.vy = 0;
+  for (let i = balls.length - 1; i >= 0; i--) {
+    for (let p of pockets) {
+      const dx = balls[i].x - p.x;
+      const dy = balls[i].y - p.y;
+      if (Math.hypot(dx, dy) < pocketRadius) {
+        if (balls[i].cue) {
+          balls[i].x = W / 2 - 120;
+          balls[i].y = H / 2;
+          balls[i].vx = balls[i].vy = 0;
+        } else {
+          balls.splice(i, 1);
+        }
+      }
     }
   }
+}
+
+function isAllStopped() {
+  return balls.every(b => b.vx === 0 && b.vy === 0);
 }
 
 // ================= LOOP =================
@@ -203,9 +207,9 @@ function gameLoop() {
   drawPockets();
   drawAim();
   drawPowerBar();
-  updateBall();
+  updateBalls();
   checkPocket();
-  drawBall();
+  drawBalls();
 
   requestAnimationFrame(gameLoop);
 }
