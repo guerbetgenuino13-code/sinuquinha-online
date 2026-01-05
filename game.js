@@ -284,6 +284,12 @@ function checkPocket() {
   }
 }
 
+function groupCleared(playerIndex) {
+  const group = playerGroups[playerIndex];
+  if (!group) return false;
+  return !balls.some(b => b.color === group);
+}
+
 /* ================= REGRAS ================= */
 function resolveTurn() {
   if (!shotInProgress) return;
@@ -301,15 +307,21 @@ if (
 }
 
 
-  const cueFoul = pocketedThisShot.some(b => b.cue);
-  const eightBall = pocketedThisShot.some(b => b.eight);
-  const colored = pocketedThisShot.filter(b => !b.cue && !b.eight);
+ const cueFoul = pocketedThisShot.some(b => b.cue);
+const eightBall = pocketedThisShot.some(b => b.eight);
+const colored = pocketedThisShot.filter(b => !b.cue && !b.eight);
 
-  if (eightBall) {
+if (eightBall) {
+  // só pode ganhar se já limpou o próprio grupo
+  if (groupCleared(currentPlayer)) {
     gameOver = true;
-    showToast(players[currentPlayer] + " perdeu");
-    return;
+    showToast(players[currentPlayer] + " venceu!");
+  } else {
+    gameOver = true;
+    showToast(players[currentPlayer] + " perdeu (bola 8 antes da hora)");
   }
+  return;
+}
 
   if (cueFoul) {
     showToast("FALTA! Bola na mão");
