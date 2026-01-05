@@ -65,6 +65,8 @@ let ballInHand = false;
 
 let firstHitColor = null; // registra a cor da primeira bola tocada
 
+let touchedOwnGroup = false; // se tocou alguma bola do próprio grupo
+
 canvas.addEventListener("mousemove", e => {
   const rct = canvas.getBoundingClientRect();
   mouse.x = e.clientX - rct.left;
@@ -245,6 +247,15 @@ if (shotInProgress && !firstHitColor) {
   else if (b.cue && !a.cue) firstHitColor = a.color;
 }
 
+      if (shotInProgress && playerGroups[currentPlayer]) {
+  if (
+    (a.cue && b.color === playerGroups[currentPlayer]) ||
+    (b.cue && a.color === playerGroups[currentPlayer])
+  ) {
+    touchedOwnGroup = true;
+  }
+}
+
       if (dist === 0 || dist >= minDist) continue;
 
       const nx = dx / dist;
@@ -298,7 +309,8 @@ function resolveTurn() {
 if (
   playerGroups[currentPlayer] &&
   firstHitColor &&
-  firstHitColor !== playerGroups[currentPlayer]
+  firstHitColor !== playerGroups[currentPlayer] &&
+  !touchedOwnGroup
 ) {
   showToast("FALTA! Primeiro toque errado");
   currentPlayer = 1 - currentPlayer;
