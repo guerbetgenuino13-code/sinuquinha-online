@@ -1,4 +1,4 @@
-// 🎱 Sinuquinha Online — 8-ball com bola na mão após falta (CORRIGIDO)
+// 🎱 Sinuquinha Online — 8-ball COMPLETO + bola na mão (VERSÃO FINAL)
 console.log("Sinuquinha Online iniciado");
 
 const canvas = document.getElementById("gameCanvas");
@@ -131,6 +131,71 @@ function drawBalls() {
   });
 }
 
+/* ================= TACO + MIRA ================= */
+function drawAim() {
+  if (!allStopped() || gameOver || ballInHand) return;
+
+  const dx = mouse.x - cueBall.x;
+  const dy = mouse.y - cueBall.y;
+  const dist = Math.hypot(dx, dy);
+  if (dist === 0) return;
+
+  ctx.setLineDash([6, 6]);
+  ctx.strokeStyle = "rgba(255,255,255,0.6)";
+  ctx.beginPath();
+  ctx.moveTo(cueBall.x, cueBall.y);
+  ctx.lineTo(mouse.x, mouse.y);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  const ux = dx / dist;
+  const uy = dy / dist;
+  const stickLength = 80 + shotPower * 40;
+
+  ctx.strokeStyle = "#d2b48c";
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(cueBall.x - ux * 14, cueBall.y - uy * 14);
+  ctx.lineTo(
+    cueBall.x - ux * (stickLength + 14),
+    cueBall.y - uy * (stickLength + 14)
+  );
+  ctx.stroke();
+}
+
+/* ================= BARRA DE FORÇA ================= */
+function drawPowerBar() {
+  if (ballInHand) return;
+
+  const h = H - margin * 2;
+  ctx.fillStyle = "#444";
+  ctx.fillRect(W - 25, margin, 10, h);
+  ctx.fillStyle = "#ffcc00";
+  ctx.fillRect(W - 25, margin + h * (1 - shotPower), 10, h * shotPower);
+}
+
+/* ================= HUD ================= */
+function drawHUD() {
+  ctx.fillStyle = "rgba(0,0,0,0.35)";
+  ctx.fillRect(10, 10, 260, 70);
+  ctx.fillStyle = "#fff";
+  ctx.font = "14px Arial";
+  ctx.fillText("Vez: " + players[currentPlayer], 20, 32);
+  ctx.fillText("Grupo: " + (playerGroups[currentPlayer] || "não definido"), 20, 52);
+
+  if (ballInHand) ctx.fillText("BOLA NA MÃO", 160, 32);
+
+  if (toastTimer > 0) {
+    ctx.globalAlpha = toastTimer / TOAST_DURATION;
+    ctx.fillStyle = "rgba(0,0,0,0.6)";
+    ctx.fillRect(W / 2 - 160, 10, 320, 36);
+    ctx.fillStyle = "#fff";
+    ctx.fillText(toastText, W / 2 - ctx.measureText(toastText).width / 2, 35);
+    ctx.globalAlpha = 1;
+    toastTimer--;
+  }
+}
+
 /* ================= FÍSICA ================= */
 function updateBalls() {
   balls.forEach(b => {
@@ -174,7 +239,7 @@ function updateBalls() {
   }
 }
 
-/* ================= CAÇAPAS (CORRIGIDO) ================= */
+/* ================= CAÇAPAS ================= */
 function checkPocket() {
   for (let i = balls.length - 1; i >= 0; i--) {
     for (let p of pockets) {
@@ -182,12 +247,9 @@ function checkPocket() {
         const ball = balls[i];
         pocketedThisShot.push(ball);
 
-        if (ball.cue) {
-          ball.vx = 0;
-          ball.vy = 0;
-        } else {
-          balls.splice(i, 1);
-        }
+        if (!ball.cue) balls.splice(i, 1);
+        else { ball.vx = ball.vy = 0; }
+
         break;
       }
     }
@@ -208,7 +270,7 @@ function resolveTurn() {
 
   if (pocketedThisShot.some(b => b.eight)) {
     gameOver = true;
-    showToast(players[currentPlayer] + " perdeu (bola preta)");
+    showToast(players[currentPlayer] + " perdeu");
     return;
   }
 
@@ -233,10 +295,12 @@ function gameLoop() {
 
   drawTable();
   drawPockets();
+  drawAim();
+  drawPowerBar();
   updateBalls();
   checkPocket();
   drawBalls();
-  drawHUD?.();
+  drawHUD();
 
   if (allStopped() && shotInProgress) resolveTurn();
 
