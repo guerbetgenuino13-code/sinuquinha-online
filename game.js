@@ -1,4 +1,4 @@
-// 🎱 Sinuquinha Online — versão completa + HUD profissional (COLISÃO CORRIGIDA)
+// 🎱 Sinuquinha Online — versão completa + HUD profissional (COLISÃO FINAL)
 console.log("Sinuquinha Online iniciado");
 
 const canvas = document.getElementById("gameCanvas");
@@ -153,12 +153,7 @@ function drawPowerBar() {
   ctx.fillRect(W - 25, margin, 10, h);
 
   ctx.fillStyle = "#ffcc00";
-  ctx.fillRect(
-    W - 25,
-    margin + h * (1 - shotPower),
-    10,
-    h * shotPower
-  );
+  ctx.fillRect(W - 25, margin + h * (1 - shotPower), 10, h * shotPower);
 }
 
 // ================= HUD =================
@@ -169,30 +164,6 @@ function drawAdvancedHUD() {
   ctx.fillStyle = "#fff";
   ctx.font = "14px Arial";
   ctx.fillText("Vez: " + players[currentPlayer], 20, 30);
-
-  const group = playerGroups[currentPlayer];
-  ctx.fillText("Seu grupo: " + (group || "não definido"), 20, 50);
-
-  if (group) {
-    const remaining = balls.filter(b => b.color === group).length;
-    ctx.fillText("Restantes: " + remaining, 20, 70);
-  }
-
-  if (toastTimer > 0 && toastText) {
-    ctx.globalAlpha = Math.min(1, toastTimer / 30);
-    ctx.fillStyle = "rgba(0,0,0,0.6)";
-    ctx.fillRect(W / 2 - 180, 10, 360, 40);
-
-    ctx.fillStyle = "#fff";
-    ctx.font = "18px Arial";
-    ctx.fillText(
-      toastText,
-      W / 2 - ctx.measureText(toastText).width / 2,
-      38
-    );
-    ctx.globalAlpha = 1;
-    toastTimer--;
-  }
 }
 
 // ================= FÍSICA =================
@@ -211,77 +182,44 @@ function updateBalls() {
     if (b.y - b.r < margin || b.y + b.r > H - margin) b.vy *= -1;
   });
 
-// 👉 COLISÃO REAL (sem atração, sem grude)
-const restitution = 0.98; // elasticidade da sinuca
+  // colisão estável (SEM atração)
+  const restitution = 0.98;
 
-for (let i = 0; i < balls.length; i++) {
-  for (let j = i + 1; j < balls.length; j++) {
-    const a = balls[i];
-    const b = balls[j];
+  for (let i = 0; i < balls.length; i++) {
+    for (let j = i + 1; j < balls.length; j++) {
+      const a = balls[i];
+      const b = balls[j];
 
-    const dx = b.x - a.x;
-    const dy = b.y - a.y;
-    const dist = Math.hypot(dx, dy);
-    const minDist = a.r + b.r;
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const dist = Math.hypot(dx, dy);
+      const minDist = a.r + b.r;
 
-    if (dist === 0 || dist >= minDist) continue;
+      if (dist === 0 || dist >= minDist) continue;
 
-    // normal
-    const nx = dx / dist;
-    const ny = dy / dist;
+      const nx = dx / dist;
+      const ny = dy / dist;
 
-    // 1️⃣ separação física total
-    const overlap = minDist - dist;
-    a.x -= nx * overlap / 2;
-    a.y -= ny * overlap / 2;
-    b.x += nx * overlap / 2;
-    b.y += ny * overlap / 2;
+      const overlap = minDist - dist;
+      a.x -= nx * overlap / 2;
+      a.y -= ny * overlap / 2;
+      b.x += nx * overlap / 2;
+      b.y += ny * overlap / 2;
 
-    // 2️⃣ velocidade relativa
-    const rvx = b.vx - a.vx;
-    const rvy = b.vy - a.vy;
+      const rvx = b.vx - a.vx;
+      const rvy = b.vy - a.vy;
+      const velAlongNormal = rvx * nx + rvy * ny;
 
-    const velAlongNormal = rvx * nx + rvy * ny;
+      const impulse = -(1 + restitution) * velAlongNormal / 2;
+      const ix = impulse * nx;
+      const iy = impulse * ny;
 
-    // 3️⃣ impulso (NUNCA pula)
-    const impulse = -(1 + restitution) * velAlongNormal / 2;
-
-    const ix = impulse * nx;
-    const iy = impulse * ny;
-
-    a.vx -= ix;
-    a.vy -= iy;
-    b.vx += ix;
-    b.vy += iy;
-  }
-}
-
-
-// ================= CAÇAPAS + REGRAS =================
-function checkPocket() {
-  for (let i = balls.length - 1; i >= 0; i--) {
-    for (let p of pockets) {
-      if (Math.hypot(balls[i].x - p.x, balls[i].y - p.y) < pocketRadius) {
-        const ball = balls[i];
-        ballsPocketedThisTurn.push(ball);
-
-        if (ball.cue) {
-          cueBall.x = W / 2 - 140;
-          cueBall.y = H / 2;
-          cueBall.vx = cueBall.vy = 0;
-          currentPlayer = 1 - currentPlayer;
-          showToast("FALTA! Bola branca");
-        }
-
-        balls.splice(i, 1);
-        break;
-      }
+      a.vx -= ix;
+      a.vy -= iy;
+      b.vx += ix;
+      b.vy += iy;
     }
   }
-}
-
-function allStopped() {
-  return balls.every(b => b.vx === 0 && b.vy === 0);
 }
 
 // ================= LOOP =================
@@ -298,19 +236,8 @@ function gameLoop() {
   drawAim();
   drawPowerBar();
   updateBalls();
-  checkPocket();
   drawBalls();
   drawAdvancedHUD();
-
-  if (
-    allStopped() &&
-    !charging &&
-    ballsPocketedThisTurn.length === 0 &&
-    !gameOver
-  ) {
-    currentPlayer = 1 - currentPlayer;
-    showToast("Troca de vez");
-  }
 
   requestAnimationFrame(gameLoop);
 }
