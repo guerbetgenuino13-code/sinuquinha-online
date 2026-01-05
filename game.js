@@ -1,4 +1,4 @@
-// 🎱 Sinuquinha Online — versão FINAL com regras 8-ball (ESTÁVEL)
+// 🎱 Sinuquinha Online — versão FINAL com regras 8-ball + trava de tacada
 console.log("Sinuquinha Online iniciado");
 
 const canvas = document.getElementById("gameCanvas");
@@ -24,13 +24,14 @@ const pockets = [
 /* ================= JOGADORES ================= */
 const players = ["Player 1", "Player 2"];
 let currentPlayer = 0;
-let playerGroups = [null, null]; // "red" | "yellow"
+let playerGroups = [null, null];
 let gameOver = false;
 
 /* ================= HUD ================= */
 let toastText = "";
 let toastTimer = 0;
 const TOAST_DURATION = 140;
+
 function showToast(text) {
   toastText = text;
   toastTimer = TOAST_DURATION;
@@ -69,7 +70,10 @@ canvas.addEventListener("mousemove", e => {
 });
 
 canvas.addEventListener("mousedown", () => {
-  if (gameOver || !allStopped()) return;
+  if (gameOver) return;
+  if (!allStopped()) return;
+  if (shotInProgress) return;
+
   charging = true;
 });
 
@@ -261,7 +265,8 @@ function resolveTurn() {
     const color = colored[0].color;
     if (!playerGroups[currentPlayer]) {
       playerGroups[currentPlayer] = color;
-      playerGroups[1 - currentPlayer] = color === "red" ? "yellow" : "red";
+      playerGroups[1 - currentPlayer] =
+        color === "red" ? "yellow" : "red";
       showToast("Grupo definido: " + color);
     }
     showToast("Continua a vez");
@@ -293,7 +298,9 @@ function gameLoop() {
   drawBalls();
   drawHUD();
 
-  if (allStopped()) resolveTurn();
+  if (allStopped() && shotInProgress) {
+    resolveTurn();
+  }
 
   requestAnimationFrame(gameLoop);
 }
