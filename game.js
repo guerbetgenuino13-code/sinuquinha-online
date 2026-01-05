@@ -1,4 +1,4 @@
-// 🎱 Sinuquinha Online — 8-ball COMPLETO + bola na mão (VERSÃO FINAL)
+// 🎱 Sinuquinha Online — 8-ball COMPLETO + bola na mão (AJUSTADO)
 console.log("Sinuquinha Online iniciado");
 
 const canvas = document.getElementById("gameCanvas");
@@ -199,6 +199,12 @@ function drawHUD() {
 /* ================= FÍSICA ================= */
 function updateBalls() {
   balls.forEach(b => {
+    if (ballInHand && b.cue) {
+      b.vx = 0;
+      b.vy = 0;
+      return;
+    }
+
     b.x += b.vx;
     b.y += b.vy;
     b.vx *= 0.99;
@@ -213,6 +219,9 @@ function updateBalls() {
   for (let i = 0; i < balls.length; i++) {
     for (let j = i + 1; j < balls.length; j++) {
       const a = balls[i], b = balls[j];
+
+      if (ballInHand && (a.cue || b.cue)) continue;
+
       const dx = b.x - a.x;
       const dy = b.y - a.y;
       const dist = Math.hypot(dx, dy);
@@ -261,20 +270,33 @@ function resolveTurn() {
   if (!shotInProgress) return;
   shotInProgress = false;
 
-  if (pocketedThisShot.some(b => b.cue)) {
+  const cueFoul = pocketedThisShot.some(b => b.cue);
+  const eightBall = pocketedThisShot.some(b => b.eight);
+  const colored = pocketedThisShot.filter(b => !b.cue && !b.eight);
+
+  if (eightBall) {
+    gameOver = true;
+    showToast(players[currentPlayer] + " perdeu");
+    return;
+  }
+
+  if (cueFoul) {
     showToast("FALTA! Bola na mão");
     currentPlayer = 1 - currentPlayer;
     ballInHand = true;
     return;
   }
 
-  if (pocketedThisShot.some(b => b.eight)) {
-    gameOver = true;
-    showToast(players[currentPlayer] + " perdeu");
-    return;
-  }
-
-  if (pocketedThisShot.filter(b => !b.cue && !b.eight).length === 0) {
+  if (colored.length > 0) {
+    const color = colored[0].color;
+    if (!playerGroups[currentPlayer]) {
+      playerGroups[currentPlayer] = color;
+      playerGroups[1 - currentPlayer] = color === "red" ? "yellow" : "red";
+      showToast("Grupo definido: " + color);
+    } else {
+      showToast("Continua a vez");
+    }
+  } else {
     currentPlayer = 1 - currentPlayer;
     showToast("Troca de vez");
   }
