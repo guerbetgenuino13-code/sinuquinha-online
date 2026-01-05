@@ -211,42 +211,51 @@ function updateBalls() {
     if (b.y - b.r < margin || b.y + b.r > H - margin) b.vy *= -1;
   });
 
-  // 👉 COLISÃO CORRIGIDA (anti-bola-grudada)
-  for (let i = 0; i < balls.length; i++) {
-    for (let j = i + 1; j < balls.length; j++) {
-      const a = balls[i];
-      const b = balls[j];
-      const dx = b.x - a.x;
-      const dy = b.y - a.y;
-      const dist = Math.hypot(dx, dy);
-      const minDist = a.r + b.r;
+// 👉 COLISÃO REAL (sem atração, sem grude)
+const restitution = 0.98; // elasticidade da sinuca
 
-      if (dist > 0 && dist < minDist) {
-        const nx = dx / dist;
-        const ny = dy / dist;
+for (let i = 0; i < balls.length; i++) {
+  for (let j = i + 1; j < balls.length; j++) {
+    const a = balls[i];
+    const b = balls[j];
 
-        // separação física
-        const overlap = minDist - dist;
-        a.x -= nx * overlap / 2;
-        a.y -= ny * overlap / 2;
-        b.x += nx * overlap / 2;
-        b.y += ny * overlap / 2;
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const dist = Math.hypot(dx, dy);
+    const minDist = a.r + b.r;
 
-        // troca de velocidade
-        const dvx = a.vx - b.vx;
-        const dvy = a.vy - b.vy;
-        const impact = dvx * nx + dvy * ny;
+    if (dist === 0 || dist >= minDist) continue;
 
-        if (impact > 0) continue;
+    // normal
+    const nx = dx / dist;
+    const ny = dy / dist;
 
-        a.vx -= impact * nx;
-        a.vy -= impact * ny;
-        b.vx += impact * nx;
-        b.vy += impact * ny;
-      }
-    }
+    // 1️⃣ separação física total
+    const overlap = minDist - dist;
+    a.x -= nx * overlap / 2;
+    a.y -= ny * overlap / 2;
+    b.x += nx * overlap / 2;
+    b.y += ny * overlap / 2;
+
+    // 2️⃣ velocidade relativa
+    const rvx = b.vx - a.vx;
+    const rvy = b.vy - a.vy;
+
+    const velAlongNormal = rvx * nx + rvy * ny;
+
+    // 3️⃣ impulso (NUNCA pula)
+    const impulse = -(1 + restitution) * velAlongNormal / 2;
+
+    const ix = impulse * nx;
+    const iy = impulse * ny;
+
+    a.vx -= ix;
+    a.vy -= iy;
+    b.vx += ix;
+    b.vy += iy;
   }
 }
+
 
 // ================= CAÇAPAS + REGRAS =================
 function checkPocket() {
