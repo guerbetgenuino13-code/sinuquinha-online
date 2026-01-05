@@ -1,4 +1,4 @@
-// 🎱 Sinuquinha Online — bola inicial
+// 🎱 Sinuquinha Online — bola + caçapas
 console.log("Sinuquinha Online iniciado");
 
 const canvas = document.getElementById("gameCanvas");
@@ -10,13 +10,24 @@ const H = canvas.height;
 // mesa
 const margin = 40;
 
+// caçapas
+const pocketRadius = 18;
+const pockets = [
+  { x: margin, y: margin },
+  { x: W / 2, y: margin },
+  { x: W - margin, y: margin },
+  { x: margin, y: H - margin },
+  { x: W / 2, y: H - margin },
+  { x: W - margin, y: H - margin },
+];
+
 // bola
 const ball = {
   x: W / 2,
   y: H / 2,
   r: 10,
-  vx: 3,
-  vy: 2
+  vx: 0,
+  vy: 0
 };
 
 function drawTable() {
@@ -34,6 +45,15 @@ function drawTable() {
   );
 }
 
+function drawPockets() {
+  ctx.fillStyle = "black";
+  pockets.forEach(p => {
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, pocketRadius, 0, Math.PI * 2);
+    ctx.fill();
+  });
+}
+
 function updateBall() {
   ball.x += ball.vx;
   ball.y += ball.vy;
@@ -43,7 +63,7 @@ function updateBall() {
   ball.vx *= friction;
   ball.vy *= friction;
 
-  // parar quando estiver muito lento
+  // parar quando estiver lento
   if (Math.abs(ball.vx) < 0.05) ball.vx = 0;
   if (Math.abs(ball.vy) < 0.05) ball.vy = 0;
 
@@ -56,8 +76,23 @@ function updateBall() {
   }
 }
 
+function checkPocket() {
+  for (let p of pockets) {
+    const dx = ball.x - p.x;
+    const dy = ball.y - p.y;
+    const dist = Math.hypot(dx, dy);
+
+    if (dist < pocketRadius) {
+      // bola caiu
+      ball.x = W / 2;
+      ball.y = H / 2;
+      ball.vx = 0;
+      ball.vy = 0;
+    }
+  }
+}
+
 canvas.addEventListener("click", (e) => {
-  // só permite tacada se a bola estiver parada
   if (ball.vx !== 0 || ball.vy !== 0) return;
 
   const rect = canvas.getBoundingClientRect();
@@ -67,11 +102,9 @@ canvas.addEventListener("click", (e) => {
   const dx = mx - ball.x;
   const dy = my - ball.y;
   const dist = Math.hypot(dx, dy);
-
   if (dist === 0) return;
 
   const force = 8;
-
   ball.vx = (dx / dist) * force;
   ball.vy = (dy / dist) * force;
 });
@@ -86,10 +119,14 @@ function drawBall() {
 function gameLoop() {
   ctx.clearRect(0, 0, W, H);
   drawTable();
+  drawPockets();
   updateBall();
+  checkPocket();
   drawBall();
   requestAnimationFrame(gameLoop);
 }
+
+gameLoop();
 
 gameLoop();
 
