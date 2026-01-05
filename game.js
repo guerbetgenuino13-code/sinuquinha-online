@@ -169,6 +169,40 @@ function drawBalls() {
 
 /* ================= TACO + MIRA ================= */
 function drawAim() {
+  function getFirstCollision() {
+  let closest = null;
+  let minDist = Infinity;
+
+  const dx = mouse.x - cueBall.x;
+  const dy = mouse.y - cueBall.y;
+  const len = Math.hypot(dx, dy);
+  if (len === 0) return null;
+
+  const ux = dx / len;
+  const uy = dy / len;
+
+  balls.forEach(b => {
+    if (b.cue) return;
+
+    const fx = b.x - cueBall.x;
+    const fy = b.y - cueBall.y;
+
+    const proj = fx * ux + fy * uy;
+    if (proj <= 0) return;
+
+    const cx = cueBall.x + ux * proj;
+    const cy = cueBall.y + uy * proj;
+
+    const dist = Math.hypot(b.x - cx, b.y - cy);
+    if (dist < b.r + cueBall.r && proj < minDist) {
+      minDist = proj;
+      closest = { ball: b, x: cx, y: cy };
+    }
+  });
+
+  return closest;
+}
+
   if (!allStopped() || gameOver || ballInHand) return;
 
   const dx = mouse.x - cueBall.x;
@@ -183,6 +217,31 @@ function drawAim() {
   ctx.lineTo(mouse.x, mouse.y);
   ctx.stroke();
   ctx.setLineDash([]);
+  // 🎯 LINHA FANTASMA
+const hit = getFirstCollision();
+if (hit) {
+  // ponto de impacto
+  ctx.beginPath();
+  ctx.arc(hit.x, hit.y, cueBall.r, 0, Math.PI * 2);
+  ctx.strokeStyle = "rgba(255,255,255,0.6)";
+  ctx.stroke();
+
+  // direção da bola atingida
+  const nx = hit.ball.x - hit.x;
+  const ny = hit.ball.y - hit.y;
+  const nLen = Math.hypot(nx, ny);
+  if (nLen > 0) {
+    ctx.beginPath();
+    ctx.moveTo(hit.ball.x, hit.ball.y);
+    ctx.lineTo(
+      hit.ball.x + (nx / nLen) * 30,
+      hit.ball.y + (ny / nLen) * 30
+    );
+    ctx.strokeStyle = "rgba(255,255,255,0.4)";
+    ctx.stroke();
+  }
+}
+
 
   const ux = dx / dist;
   const uy = dy / dist;
