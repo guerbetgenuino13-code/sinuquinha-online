@@ -1,4 +1,4 @@
-// 🎱 Sinuquinha Online — base completa (mesa + bola + caçapas + taco)
+// 🎱 Sinuquinha Online — base completa + barra de força
 console.log("Sinuquinha Online iniciado");
 
 const canvas = document.getElementById("gameCanvas");
@@ -39,13 +39,41 @@ canvas.addEventListener("mousemove", (e) => {
   mouse.y = e.clientY - rect.top;
 });
 
+// ================= FORÇA =================
+let shotPower = 0;          // 0..1
+let charging = false;
+const maxForce = 14;
+
+canvas.addEventListener("mousedown", () => {
+  if (ball.vx !== 0 || ball.vy !== 0) return;
+  charging = true;
+});
+
+canvas.addEventListener("mouseup", () => {
+  if (!charging) return;
+  charging = false;
+
+  const dx = mouse.x - ball.x;
+  const dy = mouse.y - ball.y;
+  const dist = Math.hypot(dx, dy);
+  if (dist === 0) return;
+
+  const ux = dx / dist;
+  const uy = dy / dist;
+
+  const force = shotPower * maxForce;
+
+  ball.vx = ux * force;
+  ball.vy = uy * force;
+
+  shotPower = 0;
+});
+
 // ================= DESENHO =================
 function drawTable() {
-  // madeira
   ctx.fillStyle = "#2b1b0f";
   ctx.fillRect(0, 0, W, H);
 
-  // feltro
   ctx.fillStyle = "#0b6b3a";
   ctx.fillRect(
     margin,
@@ -73,7 +101,6 @@ function drawBall() {
 
 // ================= TACO + MIRA =================
 function drawAim() {
-  // só mostra se a bola estiver parada
   if (ball.vx !== 0 || ball.vy !== 0) return;
 
   const dx = mouse.x - ball.x;
@@ -81,7 +108,6 @@ function drawAim() {
   const dist = Math.hypot(dx, dy);
   if (dist === 0) return;
 
-  // linha de mira
   ctx.strokeStyle = "rgba(255,255,255,0.5)";
   ctx.setLineDash([6, 6]);
   ctx.beginPath();
@@ -90,11 +116,10 @@ function drawAim() {
   ctx.stroke();
   ctx.setLineDash([]);
 
-  // taco
   const ux = dx / dist;
   const uy = dy / dist;
 
-  const stickLength = 80;
+  const stickLength = 80 + shotPower * 40;
   const offset = 14;
 
   ctx.strokeStyle = "#d2b48c";
@@ -111,12 +136,30 @@ function drawAim() {
   ctx.stroke();
 }
 
+// ================= BARRA DE FORÇA =================
+function drawPowerBar() {
+  const barX = W - 25;
+  const barY = margin;
+  const barH = H - margin * 2;
+  const barW = 10;
+
+  ctx.fillStyle = "#444";
+  ctx.fillRect(barX, barY, barW, barH);
+
+  ctx.fillStyle = "#ffcc00";
+  ctx.fillRect(
+    barX,
+    barY + barH * (1 - shotPower),
+    barW,
+    barH * shotPower
+  );
+}
+
 // ================= FÍSICA =================
 function updateBall() {
   ball.x += ball.vx;
   ball.y += ball.vy;
 
-  // atrito
   const friction = 0.99;
   ball.vx *= friction;
   ball.vy *= friction;
@@ -124,7 +167,6 @@ function updateBall() {
   if (Math.abs(ball.vx) < 0.05) ball.vx = 0;
   if (Math.abs(ball.vy) < 0.05) ball.vy = 0;
 
-  // colisão com bordas
   if (ball.x - ball.r < margin || ball.x + ball.r > W - margin) {
     ball.vx *= -1;
   }
@@ -140,7 +182,6 @@ function checkPocket() {
     const dist = Math.hypot(dx, dy);
 
     if (dist < pocketRadius) {
-      // bola caiu
       ball.x = W / 2;
       ball.y = H / 2;
       ball.vx = 0;
@@ -149,33 +190,23 @@ function checkPocket() {
   }
 }
 
-// ================= TACADA =================
-canvas.addEventListener("click", (e) => {
-  if (ball.vx !== 0 || ball.vy !== 0) return;
-
-  const rect = canvas.getBoundingClientRect();
-  const mx = e.clientX - rect.left;
-  const my = e.clientY - rect.top;
-
-  const dx = mx - ball.x;
-  const dy = my - ball.y;
-  const dist = Math.hypot(dx, dy);
-  if (dist === 0) return;
-
-  const force = 8;
-  ball.vx = (dx / dist) * force;
-  ball.vy = (dy / dist) * force;
-});
-
 // ================= LOOP =================
 function gameLoop() {
   ctx.clearRect(0, 0, W, H);
+
+  if (charging) {
+    shotPower += 0.015;
+    if (shotPower > 1) shotPower = 1;
+  }
+
   drawTable();
   drawPockets();
   drawAim();
+  drawPowerBar();
   updateBall();
   checkPocket();
   drawBall();
+
   requestAnimationFrame(gameLoop);
 }
 
