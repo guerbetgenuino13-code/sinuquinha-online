@@ -234,8 +234,8 @@ if (hit) {
     ctx.beginPath();
     ctx.moveTo(hit.ball.x, hit.ball.y);
     ctx.lineTo(
-      hit.ball.x + (nx / nLen) * 30,
-      hit.ball.y + (ny / nLen) * 30
+      hit.ball.x + (nx / nLen) * 45,
+      hit.ball.y + (ny / nLen) * 45
     );
     ctx.strokeStyle = "rgba(255,255,255,0.4)";
     ctx.stroke();
