@@ -56,6 +56,25 @@ function updateBall() {
   }
 }
 
+canvas.addEventListener("click", (e) => {
+  // só permite tacada se a bola estiver parada
+  if (ball.vx !== 0 || ball.vy !== 0) return;
+
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+
+  const dx = mx - ball.x;
+  const dy = my - ball.y;
+  const dist = Math.hypot(dx, dy);
+
+  if (dist === 0) return;
+
+  const force = 8;
+
+  ball.vx = (dx / dist) * force;
+  ball.vy = (dy / dist) * force;
+});
 
 function drawBall() {
   ctx.beginPath();
