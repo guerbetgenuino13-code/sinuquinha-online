@@ -1,4 +1,4 @@
-// 🎱 Sinuquinha Online — regras + turnos
+// 🎱 Sinuquinha Online — versão completa corrigida
 console.log("Sinuquinha Online iniciado");
 
 const canvas = document.getElementById("gameCanvas");
@@ -41,11 +41,12 @@ let mouse = { x: 0, y: 0 };
 let charging = false;
 let shotPower = 0;
 let ballsPocketedThisTurn = 0;
+const maxForce = 14;
 
 canvas.addEventListener("mousemove", e => {
-  const r = canvas.getBoundingClientRect();
-  mouse.x = e.clientX - r.left;
-  mouse.y = e.clientY - r.top;
+  const rect = canvas.getBoundingClientRect();
+  mouse.x = e.clientX - rect.left;
+  mouse.y = e.clientY - rect.top;
 });
 
 canvas.addEventListener("mousedown", () => {
@@ -62,9 +63,10 @@ canvas.addEventListener("mouseup", () => {
   const dist = Math.hypot(dx, dy);
   if (dist === 0) return;
 
-  const force = shotPower * 14;
+  const force = shotPower * maxForce;
   cueBall.vx = (dx / dist) * force;
   cueBall.vy = (dy / dist) * force;
+
   shotPower = 0;
   ballsPocketedThisTurn = 0;
 });
@@ -95,21 +97,16 @@ function drawBalls() {
   });
 }
 
-function drawHUD() {
-  ctx.fillStyle = "white";
-  ctx.font = "16px Arial";
-  ctx.fillText("Vez: " + players[currentPlayer], 20, 25);
-}
-
-// ================= MIRA =================
+// ================= TACO + MIRA =================
 function drawAim() {
   if (!allStopped()) return;
 
   const dx = mouse.x - cueBall.x;
   const dy = mouse.y - cueBall.y;
-  const d = Math.hypot(dx, dy);
-  if (d === 0) return;
+  const dist = Math.hypot(dx, dy);
+  if (dist === 0) return;
 
+  // linha de mira
   ctx.setLineDash([6, 6]);
   ctx.strokeStyle = "rgba(255,255,255,0.5)";
   ctx.beginPath();
@@ -117,6 +114,43 @@ function drawAim() {
   ctx.lineTo(mouse.x, mouse.y);
   ctx.stroke();
   ctx.setLineDash([]);
+
+  // taco
+  const ux = dx / dist;
+  const uy = dy / dist;
+  const stickLength = 80 + shotPower * 40;
+
+  ctx.strokeStyle = "#d2b48c";
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(cueBall.x - ux * 14, cueBall.y - uy * 14);
+  ctx.lineTo(
+    cueBall.x - ux * (stickLength + 14),
+    cueBall.y - uy * (stickLength + 14)
+  );
+  ctx.stroke();
+}
+
+// ================= BARRA DE FORÇA =================
+function drawPowerBar() {
+  const h = H - margin * 2;
+  ctx.fillStyle = "#444";
+  ctx.fillRect(W - 25, margin, 10, h);
+
+  ctx.fillStyle = "#ffcc00";
+  ctx.fillRect(
+    W - 25,
+    margin + h * (1 - shotPower),
+    10,
+    h * shotPower
+  );
+}
+
+// ================= HUD =================
+function drawHUD() {
+  ctx.fillStyle = "white";
+  ctx.font = "16px Arial";
+  ctx.fillText("Vez: " + players[currentPlayer], 20, 25);
 }
 
 // ================= FÍSICA =================
@@ -185,6 +219,7 @@ function gameLoop() {
   drawTable();
   drawPockets();
   drawAim();
+  drawPowerBar();
   updateBalls();
   checkPocket();
   drawBalls();
